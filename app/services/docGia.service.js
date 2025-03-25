@@ -2,10 +2,9 @@ const { ObjectId } = require("mongodb");
 
 class DocGiaService {
   constructor(client) {
-    this.DocGia = client.db().collection("docgia"); // Tên collection là "docgia"
+    this.DocGia = client.db().collection("docgia");
   }
 
-  // Extract DocGia data from payload
   extractDocGiaData(payload) {
     const docGia = {
       MaDocGia: payload.MaDocGia,
@@ -15,9 +14,8 @@ class DocGiaService {
       Phai: payload.Phai,
       DiaChi: payload.DiaChi,
       DienThoai: payload.DienThoai,
-      Password: payload.Password, // Thêm trường Password
+      Password: payload.Password,
     };
-    // Remove undefined fields
     Object.keys(docGia).forEach(
       (key) => docGia[key] === undefined && delete docGia[key]
     );
@@ -27,7 +25,7 @@ class DocGiaService {
   async create(payload) {
     const docGia = this.extractDocGiaData(payload);
     const result = await this.DocGia.findOneAndUpdate(
-      { MaDocGia: docGia.MaDocGia }, // Đảm bảo MaDocGia là duy nhất
+      { MaDocGia: docGia.MaDocGia },
       { $set: docGia },
       { returnDocument: "after", upsert: true }
     );

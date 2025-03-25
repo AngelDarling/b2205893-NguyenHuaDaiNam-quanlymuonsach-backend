@@ -2,8 +2,7 @@ const SachService = require("../services/sach.service");
 const MongoDB = require("../utils/mongodb.util");
 const ApiError = require("../api-error");
 
-// Create and Save a new Sach
-exports.createSach = async (req, res, next) => {
+exports.create = async (req, res, next) => {
   if (!req.body?.TenSach) {
     return next(new ApiError(400, "TenSach can not be empty"));
   }
@@ -17,7 +16,6 @@ exports.createSach = async (req, res, next) => {
   }
 };
 
-// Retrieve all Sach
 exports.findAll = async (req, res, next) => {
   let documents = [];
   try {
@@ -35,7 +33,6 @@ exports.findAll = async (req, res, next) => {
   return res.send(documents);
 };
 
-// Find a single Sach by ID
 exports.findOne = async (req, res, next) => {
   try {
     const sachService = new SachService(MongoDB.client);
@@ -51,8 +48,7 @@ exports.findOne = async (req, res, next) => {
   }
 };
 
-// Update a Sach by ID
-exports.updateSach = async (req, res, next) => {
+exports.update = async (req, res, next) => {
   if (Object.keys(req.body).length === 0) {
     return next(new ApiError(400, "Data to update can not be empty"));
   }
@@ -70,8 +66,7 @@ exports.updateSach = async (req, res, next) => {
   }
 };
 
-// Delete a Sach by ID
-exports.deleteSach = async (req, res, next) => {
+exports.delete = async (req, res, next) => {
   try {
     const sachService = new SachService(MongoDB.client);
     const document = await sachService.delete(req.params.id);

@@ -2,10 +2,9 @@ const { ObjectId } = require("mongodb");
 
 class SachService {
   constructor(client) {
-    this.Sach = client.db().collection("sachs"); // Tên collection là "sachs"
+    this.Sach = client.db().collection("sach");
   }
 
-  // Extract Sach data from payload
   extractSachData(payload) {
     const sach = {
       MaSach: payload.MaSach,
@@ -16,7 +15,6 @@ class SachService {
       MaNXB: payload.MaNXB,
       NguonGocTacGia: payload.NguonGocTacGia,
     };
-    // Remove undefined fields
     Object.keys(sach).forEach(
       (key) => sach[key] === undefined && delete sach[key]
     );
@@ -26,7 +24,7 @@ class SachService {
   async create(payload) {
     const sach = this.extractSachData(payload);
     const result = await this.Sach.findOneAndUpdate(
-      { MaSach: sach.MaSach }, // Đảm bảo MaSach là duy nhất
+      { MaSach: sach.MaSach },
       { $set: sach },
       { returnDocument: "after", upsert: true }
     );

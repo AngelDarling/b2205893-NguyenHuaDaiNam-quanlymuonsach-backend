@@ -1,59 +1,98 @@
-const TheoDoiMuonSach = require("../services/TheoDoiMuonSach");
+const TheoDoiMuonSachService = require("../services/theoDoiMuonSach.service");
+const MongoDB = require("../utils/mongodb.util");
+const ApiError = require("../api-error");
 
-exports.getAllTheoDoiMuonSach = async (req, res) => {
+exports.create = async (req, res, next) => {
+  if (!req.body?.MaDocGia || !req.body?.MaSach) {
+    return next(new ApiError(400, "MaDocGia and MaSach can not be empty"));
+  }
+
   try {
-    const theoDoiMuonSach = await TheoDoiMuonSach.find()
-      .populate("MaDocGia")
-      .populate("MaSach");
-    res.json(theoDoiMuonSach);
-  } catch (err) {
-    res.status(500).json({ message: "Lỗi server" });
+    const theoDoiMuonSachService = new TheoDoiMuonSachService(MongoDB.client);
+    const document = await theoDoiMuonSachService.create(req.body);
+    return res.send(document);
+  } catch (error) {
+    return next(
+      new ApiError(500, "An error occurred while creating the theoDoiMuonSach")
+    );
   }
 };
 
-exports.createTheoDoiMuonSach = async (req, res) => {
-  const { MaDocGia, MaSach, NgayMuon, NgayTra } = req.body;
+exports.findAll = async (req, res, next) => {
+  let documents = [];
   try {
-    const theoDoiMuonSach = new TheoDoiMuonSach({
-      MaDocGia,
-      MaSach,
-      NgayMuon,
-      NgayTra,
-    });
-    await theoDoiMuonSach.save();
-    res.status(201).json(theoDoiMuonSach);
-  } catch (err) {
-    res.status(400).json({ message: "Lỗi khi thêm bản ghi mượn sách" });
+    const theoDoiMuonSachService = new TheoDoiMuonSachService(MongoDB.client);
+    const { MaDocGia } = req.query;
+    if (MaDocGia) {
+      documents = await theoDoiMuonSachService.findByMaDocGia(MaDocGia);
+    } else {
+      documents = await theoDoiMuonSachService.find({});
+    }
+  } catch (error) {
+    return next(
+      new ApiError(500, "An error occurred while retrieving theoDoiMuonSach")
+    );
+  }
+
+  return res.send(documents);
+};
+
+exports.findOne = async (req, res, next) => {
+  try {
+    const theoDoiMuonSachService = new TheoDoiMuonSachService(MongoDB.client);
+    const document = await theoDoiMuonSachService.findById(req.params.id);
+    if (!document) {
+      return next(new ApiError(404, "TheoDoiMuonSach not found"));
+    }
+    return res.send(document);
+  } catch (error) {
+    return next(
+      new ApiError(
+        500,
+        `Error retrieving theoDoiMuonSach with id=${req.params.id}`
+      )
+    );
   }
 };
 
-exports.updateTheoDoiMuonSach = async (req, res) => {
+exports.update = async (req, res, next) => {
+  if (Object.keys(req.body).length === 0) {
+    return next(new ApiError(400, "Data to update can not be empty"));
+  }
   try {
-    const theoDoiMuonSach = await TheoDoiMuonSach.findById(req.params.id);
-    if (!theoDoiMuonSach)
-      return res
-        .status(404)
-        .json({ message: "Không tìm thấy bản ghi mượn sách" });
-
-    Object.assign(theoDoiMuonSach, req.body);
-    await theoDoiMuonSach.save();
-    res.json(theoDoiMuonSach);
-  } catch (err) {
-    res.status(400).json({ message: "Lỗi khi cập nhật bản ghi mượn sách" });
+    const theoDoiMuonSachService = new TheoDoiMuonSachService(MongoDB.client);
+    const document = await theoDoiMuonSachService.update(
+      req.params.id,
+      req.body
+    );
+    if (!document) {
+      return next(new ApiError(404, "TheoDoiMuonSach not found"));
+    }
+    return res.send({ message: "TheoDoiMuonSach was updated successfully" });
+  } catch (error) {
+    return next(
+      new ApiError(
+        500,
+        `Error updating theoDoiMuonSach with id=${req.params.id}`
+      )
+    );
   }
 };
 
-exports.deleteTheoDoiMuonSach = async (req, res) => {
+exports.delete = async (req, res, next) => {
   try {
-    const theoDoiMuonSach = await TheoDoiMuonSach.findById(req.params.id);
-    if (!theoDoiMuonSach)
-      return res
-        .status(404)
-        .json({ message: "Không tìm thấy bản ghi mượn sách" });
-
-    await theoDoiMuonSach.remove();
-    res.json({ message: "Xóa bản ghi mượn sách thành công" });
-  } catch (err) {
-    res.status(500).json({ message: "Lỗi server" });
+    const theoDoiMuonSachService = new TheoDoiMuonSachService(MongoDB.client);
+    const document = await theoDoiMuonSachService.delete(req.params.id);
+    if (!document) {
+      return next(new ApiError(404, "TheoDoiMuonSach not found"));
+    }
+    return res.send({ message: "TheoDoiMuonSach was deleted successfully" });
+  } catch (error) {
+    return next(
+      new ApiError(
+        500,
+        `Could not delete theoDoiMuonSach with id=${req.params.id}`
+      )
+    );
   }
 };

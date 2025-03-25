@@ -1,11 +1,17 @@
 const express = require("express");
+const theoDoiMuonSach = require("../controllers/theoDoiMuonSach.controller");
 const router = express.Router();
-const theoDoiMuonSachController = require("../controllers/theodoimuonsachController");
 const auth = require("../middleware/auth");
 
-router.get("/", theoDoiMuonSachController.getAllTheoDoiMuonSach);
-router.post("/", auth, theoDoiMuonSachController.createTheoDoiMuonSach);
-router.put("/:id", auth, theoDoiMuonSachController.updateTheoDoiMuonSach);
-router.delete("/:id", auth, theoDoiMuonSachController.deleteTheoDoiMuonSach);
+router
+  .route("/")
+  .get(theoDoiMuonSach.findAll)
+  .post(auth, theoDoiMuonSach.create);
+
+router
+  .route("/:id")
+  .get(theoDoiMuonSach.findOne)
+  .put(auth, theoDoiMuonSach.update)
+  .delete(auth, theoDoiMuonSach.delete);
 
 module.exports = router;
