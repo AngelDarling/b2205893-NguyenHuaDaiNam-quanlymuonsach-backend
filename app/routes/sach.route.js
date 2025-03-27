@@ -11,4 +11,6 @@ router
   .put(auth, sach.update)
   .delete(auth, sach.delete);
 
+router.route("/soft-delete/:id").put(auth, sach.softDelete);
+router.route("/restore/:id").put(auth, sach.restore);
 module.exports = router;

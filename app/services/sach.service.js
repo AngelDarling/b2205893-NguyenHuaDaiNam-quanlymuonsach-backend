@@ -16,6 +16,7 @@ class SachService {
       NamXuatBan: payload.NamXuatBan,
       MaNXB: payload.MaNXB,
       TacGia: payload.TacGia,
+      TrangThai: payload.TrangThai || "HienHanh", // Đảm bảo trạng thái mặc định
     };
     Object.keys(sach).forEach(
       (key) => sach[key] === undefined && delete sach[key]
@@ -78,7 +79,7 @@ class SachService {
       _id: ObjectId.isValid(id) ? new ObjectId(id) : null,
     });
     if (sach && sach.MaNXB) {
-      sach.nhaXuatBan = await this.NhaXuatBan.findOne({ MaNXB: sach.MaNXB });
+      sach.nhaXuatBan = await this.nhaXuatBan.findOne({ MaNXB: sach.MaNXB });
     }
     return sach;
   }

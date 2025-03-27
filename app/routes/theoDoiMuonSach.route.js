@@ -6,7 +6,7 @@ const { auth, verifyTokenOnly } = require("../middleware/auth");
 
 router
   .route("/")
-  .get(auth, theoDoiMuonSach.findAll)
+  .get(verifyTokenOnly, theoDoiMuonSach.findAll)
   .post(verifyTokenOnly, theoDoiMuonSach.create);
 
 router.route("/statistics").get(verifyTokenOnly, theoDoiMuonSach.getStatistics);

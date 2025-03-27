@@ -41,7 +41,11 @@ exports.create = async (req, res, next) => {
     if (existingSach) {
       return next(new ApiError(400, "Mã sách đã tồn tại"));
     }
-    const document = await sachService.create(req.body);
+    // Đảm bảo trạng thái mặc định là "HienHanh" khi tạo mới
+    const document = await sachService.create({
+      ...req.body,
+      TrangThai: "HienHanh",
+    });
     return res.send(document);
   } catch (error) {
     console.error("Lỗi khi tạo sách:", error);
@@ -54,12 +58,24 @@ exports.create = async (req, res, next) => {
   }
 };
 
-// Lấy danh sách sách (hỗ trợ tìm kiếm và phân trang)
+// Lấy danh sách sách (hỗ trợ tìm kiếm, phân trang và lọc theo trạng thái)
 exports.find = async (req, res, next) => {
   try {
     const sachService = new SachService(MongoDB.client);
-    const { search, maNXB, page, limit } = req.query; // Thêm maNXB
-    const result = await sachService.find({}, { search, maNXB, page, limit });
+    const { search, maNXB, page, limit, trangThai } = req.query; // Thêm trangThai
+    const query = {};
+
+    if (search) {
+      query.TenSach = { $regex: search, $options: "i" };
+    }
+    if (maNXB) {
+      query.MaNXB = maNXB;
+    }
+    if (trangThai) {
+      query.TrangThai = trangThai; // Lọc theo trạng thái
+    }
+
+    const result = await sachService.find(query, { page, limit });
     return res.send(result);
   } catch (error) {
     console.error("Lỗi khi lấy danh sách sách:", error);
@@ -110,7 +126,7 @@ exports.update = async (req, res, next) => {
   }
 };
 
-// Xóa sách
+// Xóa sách (xóa cứng - giữ lại để sử dụng nếu cần)
 exports.delete = async (req, res, next) => {
   try {
     const sachService = new SachService(MongoDB.client);
@@ -123,6 +139,58 @@ exports.delete = async (req, res, next) => {
     console.error("Lỗi khi xóa sách:", error);
     return next(
       new ApiError(500, `Đã xảy ra lỗi khi xóa sách: ${error.message}`)
+    );
+  }
+};
+
+// Soft delete sách (chuyển trạng thái thành "DaXoa")
+exports.softDelete = async (req, res, next) => {
+  try {
+    const sachService = new SachService(MongoDB.client);
+    const document = await sachService.findById(req.params.id);
+    if (!document) {
+      return next(new ApiError(404, "Không tìm thấy sách"));
+    }
+
+    // Cập nhật trạng thái thành "DaXoa"
+    const updatedDocument = await sachService.update(req.params.id, {
+      TrangThai: "DaXoa",
+    });
+    if (!updatedDocument) {
+      return next(new ApiError(404, "Không tìm thấy sách để cập nhật"));
+    }
+
+    return res.send({ message: "Sách đã được chuyển sang trạng thái đã xóa" });
+  } catch (error) {
+    console.error("Lỗi khi soft delete sách:", error);
+    return next(
+      new ApiError(500, `Đã xảy ra lỗi khi soft delete sách: ${error.message}`)
+    );
+  }
+};
+
+// Khôi phục sách (chuyển trạng thái thành "HienHanh")
+exports.restore = async (req, res, next) => {
+  try {
+    const sachService = new SachService(MongoDB.client);
+    const document = await sachService.findById(req.params.id);
+    if (!document) {
+      return next(new ApiError(404, "Không tìm thấy sách"));
+    }
+
+    // Cập nhật trạng thái thành "HienHanh"
+    const updatedDocument = await sachService.update(req.params.id, {
+      TrangThai: "HienHanh",
+    });
+    if (!updatedDocument) {
+      return next(new ApiError(404, "Không tìm thấy sách để cập nhật"));
+    }
+
+    return res.send({ message: "Sách đã được khôi phục thành công" });
+  } catch (error) {
+    console.error("Lỗi khi khôi phục sách:", error);
+    return next(
+      new ApiError(500, `Đã xảy ra lỗi khi khôi phục sách: ${error.message}`)
     );
   }
 };

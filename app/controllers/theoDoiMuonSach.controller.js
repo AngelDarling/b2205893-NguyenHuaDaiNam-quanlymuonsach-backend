@@ -3,6 +3,7 @@ const TheoDoiMuonSachService = require("../services/theoDoiMuonSach.service");
 const MongoDB = require("../utils/mongodb.util");
 const ApiError = require("../api-error");
 const SachService = require("../services/sach.service");
+
 exports.create = async (req, res, next) => {
   if (!req.body?.MaDocGia || !req.body?.MaSach) {
     return next(new ApiError(400, "MaDocGia và MaSach không được để trống"));
@@ -11,6 +12,29 @@ exports.create = async (req, res, next) => {
   try {
     const theoDoiMuonSachService = new TheoDoiMuonSachService(MongoDB.client);
     const sachService = new SachService(MongoDB.client);
+
+    // Kiểm tra vai trò người dùng
+    const role = req.user?.role;
+    if (!role) {
+      return next(
+        new ApiError(401, "Token không hợp lệ: Thiếu thông tin role")
+      );
+    }
+
+    // Nếu là độc giả, kiểm tra MaDocGia
+    if (role === "docGia") {
+      const maDocGia = req.user?.MaDocGia;
+      if (!maDocGia) {
+        return next(
+          new ApiError(401, "Token không hợp lệ: Thiếu thông tin MaDocGia")
+        );
+      }
+      if (req.body.MaDocGia !== maDocGia) {
+        return next(
+          new ApiError(403, "Bạn chỉ có thể mượn sách cho chính mình.")
+        );
+      }
+    }
 
     // Tìm sách để kiểm tra số lượng
     const sach = await sachService.findOne({ MaSach: req.body.MaSach });
@@ -33,33 +57,94 @@ exports.create = async (req, res, next) => {
     return res.send(document);
   } catch (error) {
     console.error("Lỗi khi tạo bản ghi mượn sách:", error);
-    return next(new ApiError(500, `Đã xảy ra lỗi khi tạo bản ghi mượn sách: ${error.message}`));
+    return next(
+      new ApiError(
+        500,
+        `Đã xảy ra lỗi khi tạo bản ghi mượn sách: ${error.message}`
+      )
+    );
   }
 };
 
 exports.findAll = async (req, res, next) => {
   try {
     const theoDoiMuonSachService = new TheoDoiMuonSachService(MongoDB.client);
+    const role = req.user?.role;
+    if (!role) {
+      return next(
+        new ApiError(401, "Token không hợp lệ: Thiếu thông tin role")
+      );
+    }
+
+    let query = {};
     const { search, page, limit } = req.query;
-    const result = await theoDoiMuonSachService.find({}, { search, page, limit });
+
+    // Nếu là độc giả, kiểm tra MaDocGia và chỉ lấy bản ghi của họ
+    if (role === "docGia") {
+      const maDocGia = req.user?.MaDocGia;
+      if (!maDocGia) {
+        return next(
+          new ApiError(401, "Token không hợp lệ: Thiếu thông tin MaDocGia")
+        );
+      }
+      query.MaDocGia = maDocGia;
+    } else if (role === "nhanVien" && search) {
+      // Nếu là nhân viên và có tham số search, tìm kiếm theo MaDocGia
+      query.MaDocGia = { $regex: search, $options: "i" };
+    }
+
+    const result = await theoDoiMuonSachService.find(query, { page, limit });
     return res.send(result);
   } catch (error) {
     console.error("Lỗi khi lấy danh sách bản ghi mượn sách:", error);
-    return next(new ApiError(500, `Đã xảy ra lỗi khi lấy danh sách bản ghi mượn sách: ${error.message}`));
+    return next(
+      new ApiError(
+        500,
+        `Đã xảy ra lỗi khi lấy danh sách bản ghi mượn sách: ${error.message}`
+      )
+    );
   }
 };
 
 exports.findOne = async (req, res, next) => {
   try {
     const theoDoiMuonSachService = new TheoDoiMuonSachService(MongoDB.client);
+    const role = req.user?.role;
+    if (!role) {
+      return next(
+        new ApiError(401, "Token không hợp lệ: Thiếu thông tin role")
+      );
+    }
+
     const document = await theoDoiMuonSachService.findById(req.params.id);
     if (!document) {
       return next(new ApiError(404, "Không tìm thấy bản ghi mượn sách"));
     }
+
+    // Nếu là độc giả, kiểm tra MaDocGia và chỉ cho phép xem bản ghi của họ
+    if (role === "docGia") {
+      const maDocGia = req.user?.MaDocGia;
+      if (!maDocGia) {
+        return next(
+          new ApiError(401, "Token không hợp lệ: Thiếu thông tin MaDocGia")
+        );
+      }
+      if (document.MaDocGia !== maDocGia) {
+        return next(
+          new ApiError(403, "Bạn không có quyền xem bản ghi mượn sách này.")
+        );
+      }
+    }
+
     return res.send(document);
   } catch (error) {
     console.error("Lỗi khi lấy bản ghi mượn sách:", error);
-    return next(new ApiError(500, `Lỗi khi lấy bản ghi mượn sách với id=${req.params.id}: ${error.message}`));
+    return next(
+      new ApiError(
+        500,
+        `Lỗi khi lấy bản ghi mượn sách với id=${req.params.id}: ${error.message}`
+      )
+    );
   }
 };
 
@@ -69,14 +154,22 @@ exports.update = async (req, res, next) => {
   }
   try {
     const theoDoiMuonSachService = new TheoDoiMuonSachService(MongoDB.client);
-    const document = await theoDoiMuonSachService.update(req.params.id, req.body);
+    const document = await theoDoiMuonSachService.update(
+      req.params.id,
+      req.body
+    );
     if (!document) {
       return next(new ApiError(404, "Không tìm thấy bản ghi mượn sách"));
     }
     return res.send(document);
   } catch (error) {
     console.error("Lỗi khi cập nhật bản ghi mượn sách:", error);
-    return next(new ApiError(500, `Lỗi khi cập nhật bản ghi mượn sách với id=${req.params.id}: ${error.message}`));
+    return next(
+      new ApiError(
+        500,
+        `Lỗi khi cập nhật bản ghi mượn sách với id=${req.params.id}: ${error.message}`
+      )
+    );
   }
 };
 
@@ -116,47 +209,58 @@ exports.delete = async (req, res, next) => {
   } catch (error) {
     console.error("Lỗi khi xóa bản ghi mượn sách:", error);
     return next(
-      new ApiError(500, `Không thể xóa bản ghi mượn sách với id=${req.params.id}: ${error.message}`)
+      new ApiError(
+        500,
+        `Không thể xóa bản ghi mượn sách với id=${req.params.id}: ${error.message}`
+      )
     );
   }
 };
 
-// Thêm endpoint để lấy thống kê mượn sách
-// controllers/theoDoiMuonSach.controller.js
-// controllers/theoDoiMuonSach.controller.js
 exports.getStatistics = async (req, res, next) => {
   try {
     const theoDoiMuonSachService = new TheoDoiMuonSachService(MongoDB.client);
+    const role = req.user?.role;
+    if (!role) {
+      return next(
+        new ApiError(401, "Token không hợp lệ: Thiếu thông tin role")
+      );
+    }
 
-    // Lấy tất cả bản ghi mượn sách
-    const muonSachList = await theoDoiMuonSachService.findAll();
+    let muonSachList;
+    if (role === "docGia") {
+      const maDocGia = req.user?.MaDocGia;
+      if (!maDocGia) {
+        return next(
+          new ApiError(401, "Token không hợp lệ: Thiếu thông tin MaDocGia")
+        );
+      }
+      // Sử dụng find() với bộ lọc MaDocGia
+      const result = await theoDoiMuonSachService.find({ MaDocGia: maDocGia });
+      muonSachList = result.theoDoiMuonSachs || [];
+    } else {
+      // Sử dụng findAll() để lấy tất cả bản ghi
+      muonSachList = await theoDoiMuonSachService.findAll();
+    }
 
-    // Kiểm tra và đảm bảo muonSachList là mảng
-    const muonSachListSafe = Array.isArray(muonSachList) ? muonSachList : [];
-    console.log("muonSachList:", muonSachListSafe); // Debug để kiểm tra dữ liệu
+    console.log("muonSachList:", muonSachList);
 
-    // Ngày hiện tại
     const ngayHienTai = new Date();
 
-    // Tính toán các giá trị
-    let total = muonSachListSafe.length;
+    let total = muonSachList.length;
     let daTra = 0;
     let chuaTra = 0;
     let quaHan = 0;
 
-    muonSachListSafe.forEach((muonSach) => {
+    muonSachList.forEach((muonSach) => {
       const ngayTra = new Date(muonSach.NgayTra);
 
       if (muonSach.DaTra) {
-        // Nếu DaTra là true, tăng số sách đã trả
         daTra += muonSach.SoLuong;
       } else {
-        // Nếu DaTra là false, kiểm tra ngày trả
         if (ngayTra > ngayHienTai) {
-          // Ngày trả lớn hơn ngày hiện tại: Chưa trả
           chuaTra += muonSach.SoLuong;
         } else {
-          // Ngày trả nhỏ hơn hoặc bằng ngày hiện tại: Quá hạn
           quaHan += muonSach.SoLuong;
         }
       }
@@ -203,7 +307,6 @@ exports.markReturned = async (req, res, next) => {
       return next(new ApiError(404, "Không tìm thấy bản ghi mượn sách"));
     }
 
-    // Kiểm tra xem bản ghi đã được đánh dấu là đã trả chưa
     if (muonSach.DaTra) {
       return next(new ApiError(400, "Bản ghi này đã được đánh dấu là đã trả"));
     }
@@ -213,13 +316,11 @@ exports.markReturned = async (req, res, next) => {
       return next(new ApiError(404, "Không tìm thấy sách"));
     }
 
-    // Cập nhật bản ghi mượn sách: đặt DaTra là true
     const updatedMuonSach = await theoDoiMuonSachService.update(req.params.id, {
       ...muonSach,
       DaTra: true,
     });
 
-    // Tăng số lượng sách
     await sachService.update(sach._id, {
       ...sach,
       SoQuyen: sach.SoQuyen + muonSach.SoLuong,
