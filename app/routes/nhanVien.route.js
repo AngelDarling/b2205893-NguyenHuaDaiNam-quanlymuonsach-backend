@@ -1,15 +1,19 @@
+// app/routes/nhanVien.route.js
 const express = require("express");
 const nhanVien = require("../controllers/nhanVien.controller");
 const router = express.Router();
-const auth = require("../middleware/auth");
+const { auth, verifyTokenOnly } = require("../middleware/auth");
 
-router.route("/").get(nhanVien.findAll).post(auth, nhanVien.create);
+router
+  .route("/")
+  .get(verifyTokenOnly, nhanVien.findAll)
+  .post(auth, nhanVien.create);
 
-router.route("/login").post(nhanVien.login);
+router.post("/login", nhanVien.login);
 
 router
   .route("/:id")
-  .get(nhanVien.findOne)
+  .get(verifyTokenOnly, nhanVien.findOne)
   .put(auth, nhanVien.update)
   .delete(auth, nhanVien.delete);
 
